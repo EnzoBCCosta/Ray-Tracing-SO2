@@ -6,11 +6,11 @@ Projeto da disciplina de Programação Paralela (P1): renderizador de Ray Tracin
 
 | Integrante | Responsabilidade principal |
 
-| _Nome 1_ | Processos e sincronização |
+| Enzo Costa | Programa Sequencial |
 
-| _Nome 2_ | Threads e núcleo do ray tracer |
+| Rafaela Santana | Multiplas Threads |
 
-| _Nome 3_ | Experimentos, Docker e gráficos |
+| João Vitor Ferraz | Multiplos processos com memoria compartilhada |
 
 ## Descrição do problema
 
@@ -50,17 +50,7 @@ projeto/
 ├── sequencial/     código-fonte
 ├── processos/      código-fonte
 ├── threads/        código-fonte
-├── container/      Dockerfile
-└── testes/         entradas e resultados
+└── container/      Dockerfile
 ```
 
-## Cronograma
-
-| Período | Atividade |
-|---|---|
-| 08 a 09/10 | Configuração do ambiente e leitura do código-base |
-| 10 a 15/10 | Implementação e estudo individual das partes |
-| 16 a 20/10 | Experimentos, Docker e gráficos |
-| 21 a 23/10 | Montagem do zip, apresentação e ensaio |
-| 24 a 29/10 | Reserva e ensaio final |
 
