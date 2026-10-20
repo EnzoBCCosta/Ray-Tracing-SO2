@@ -6,6 +6,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <atomic>
+#include <cstring>
+#include <new>
+#include <sys/mman.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 struct Config {
     int largura = 1920, altura = 1080;
@@ -13,6 +19,7 @@ struct Config {
     int profundidade = 3;   // profundidade maxima de reflexao
     bool sombras = true, reflexoes = true, phong = true;
     string saida;   // se preenchido, grava a imagem .ppm neste caminho (usado no Docker)
+    int processos = 1;  // numero de processos (--processos N)
     bool janela = true; // abre a janela (use --janela 0 para so medir o tempo)
 };
 
@@ -111,4 +118,48 @@ static void renderizarLinhas(const Cena& cena, const Config& cfg, unsigned char*
             p[2] = paraByte(acc.z);
         }
     }
+}
+
+// ===== Versao com multiplos processos + memoria compartilhada =====
+// Regiao compartilhada: [ atomic<int> proxima | framebuffer RGB ]
+struct Compartilhado { std::atomic<int> proxima; };
+
+static bool renderizarProcessos(const Cena& cena, const Config& cfg, unsigned char* fbSaida, int nProc) {
+    const size_t bytesFb = (size_t)cfg.largura * cfg.altura * 3;
+    const size_t total = sizeof(Compartilhado) + bytesFb;
+
+    void* mem = mmap(nullptr, total, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (mem == MAP_FAILED) { perror("mmap"); return false; }
+
+    Compartilhado* comp = new (mem) Compartilhado;
+    comp->proxima.store(0);
+    unsigned char* fb = (unsigned char*)mem + sizeof(Compartilhado);
+
+    const int BLOCO = 8;   // linhas por tarefa
+    int criados = 0;
+    for (int i = 0; i < nProc; i++) {
+        pid_t pid = fork();
+        if (pid < 0) { perror("fork"); break; }
+        if (pid == 0) {    // FILHO
+            while (true) {
+                int inicio = comp->proxima.fetch_add(BLOCO);   // regiao critica (atomica)
+                if (inicio >= cfg.altura) break;
+                int fim = min(inicio + BLOCO, cfg.altura);
+                renderizarLinhas(cena, cfg, fb, inicio, fim);
+            }
+            _exit(0);
+        }
+        criados++;
+    }
+
+    bool ok = (criados == nProc);
+    for (int i = 0; i < criados; i++) {
+        int status = 0;
+        wait(&status);
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) ok = false;
+    }
+
+    if (ok) memcpy(fbSaida, fb, bytesFb);
+    munmap(mem, total);
+    return ok;
 }
