@@ -42,13 +42,14 @@ static bool lerArgumentos(int argc, char** argv, Config& cfg) {
         else if (a == "--reflexoes") cfg.reflexoes = v != 0;
         else if (a == "--phong") cfg.phong = v != 0;
         else if (a == "--janela") cfg.janela = v != 0;
+        else if (a == "--threads") cfg.threads = v;
         else {
             fprintf(stderr, "Argumento desconhecido: %s\n", argv[i]);
             return false;
         }
     }
 
-    if (cfg.largura < 1 || cfg.altura < 1 || cfg.amostras < 1 || cfg.profundidade < 0) {
+    if (cfg.largura < 1 || cfg.altura < 1 || cfg.amostras < 1 || cfg.profundidade < 0 || cfg.threads < 0) {
         fprintf(stderr, "Valores invalidos.\n");
         return false;
     }
@@ -66,7 +67,7 @@ int main(int argc, char** argv) {
     vector<unsigned char> fb((size_t)cfg.largura * cfg.altura * 3);
 
     auto t0 = chrono::steady_clock::now();
-    renderizarLinhas(cena, cfg, fb.data(), 0, cfg.altura);
+    renderizarParalelo(cena, cfg, fb.data());
     double seg = chrono::duration<double>(chrono::steady_clock::now() - t0).count();
 
     if (!cfg.saida.empty()) {
@@ -82,7 +83,8 @@ int main(int argc, char** argv) {
 
     printf("Resolucao: %dx%d | amostras: %d | profundidade: %d | sombras: %d | reflexoes: %d | phong: %d\n",
            cfg.largura, cfg.altura, cfg.amostras, cfg.profundidade, cfg.sombras, cfg.reflexoes, cfg.phong);
-    printf("Tempo de execucao: %.3f s\n", seg);
+           printf("Threads: %d\n", cfg.threads > 0 ? cfg.threads : (int)max(1u, thread::hardware_concurrency()));
+           printf("Tempo de execucao: %.3f s\n", seg);
     if (!cfg.saida.empty()) printf("Imagem salva em: %s\n", cfg.saida.c_str());
     return 0;
 }

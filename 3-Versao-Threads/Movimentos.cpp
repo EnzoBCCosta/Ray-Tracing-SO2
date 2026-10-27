@@ -85,7 +85,7 @@ static int executarJanela(Cena& cena, Config& cfg) {
             if (movendo) c.amostras = 1;
 
             auto t0 = chrono::steady_clock::now();
-            renderizarLinhas(cena, c, rgb.data(), 0, c.altura);
+            renderizarParalelo(cena, c, rgb.data());
             double ms = chrono::duration<double, milli>(chrono::steady_clock::now() - t0).count();
 
             SDL_UpdateTexture(tex, nullptr, rgb.data(), c.largura * 3);

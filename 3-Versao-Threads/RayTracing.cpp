@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <thread>
+#include <vector>
 
 struct Config {
     int largura = 1920, altura = 1080;
@@ -14,6 +16,7 @@ struct Config {
     bool sombras = true, reflexoes = true, phong = true;
     string saida;   // se preenchido, grava a imagem .ppm neste caminho (usado no Docker)
     bool janela = true; // abre a janela (use --janela 0 para so medir o tempo)
+    int threads = 0;
 };
 
 //Iluminacao
@@ -111,4 +114,22 @@ static void renderizarLinhas(const Cena& cena, const Config& cfg, unsigned char*
             p[2] = paraByte(acc.z);
         }
     }
+}
+// Versao com threads: cada thread pega blocos de linhas de uma fila atomica.
+static void renderizarParalelo(const Cena& cena, const Config& cfg, unsigned char* fb) {
+    const int n = cfg.threads > 0 ? cfg.threads : (int)max(1u, thread::hardware_concurrency());
+    const int bloco = 4;                       // linhas por tarefa
+    atomic<int> proxima{0};
+
+    auto worker = [&]() {
+        while (true) {
+            int y0 = proxima.fetch_add(bloco);
+            if (y0 >= cfg.altura) break;
+            renderizarLinhas(cena, cfg, fb, y0, min(y0 + bloco, cfg.altura));
+        }
+    };
+
+    vector<thread> pool;
+    for (int i = 0; i < n; ++i) pool.emplace_back(worker);
+    for (auto& t : pool) t.join();
 }
